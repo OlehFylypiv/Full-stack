@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+    
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta http-equiv="X-UA-Compatible" content="ie=edge">
+        
+        <script src="/socket.io/socket.io.js"></script>
+        <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
+        
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+        
+        <title>My Chat</title>
+        
+        <style>
+            body {
+                margin-top: 50px;
+            }
+            #messageArea {
+                display: none;
+            }
+            .error {
+                color: red;
+            }
+            .privateMsg {
+                color: blue;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div class="container">
+            
+            <div id="userFormArea" class="row">
+                <div class="col-md-6">
+                    <form id="userForm">
+                        <div class="form-group">
+                            <label>Enter User Name</label>
+                            <input  id="userName" class="form-control">
+                            <br>
+                            <input type="submit" class="btn btn-primary" value="Log In">
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="row" id="messageArea">
+                <div class="col-md-4">
+                    <div class="well">
+                        <h3>Online Users</h3>
+                        <ul class="list-group" id="users">
+
+                        </ul>
+                        <p>
+                            If you want to send a private messages: <br>
+                            #for [username] [message] <br>
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="col-md-8">
+                    <div class="chat" id="chat">
+
+                    </div>
+                    <div id="isTyping">
+
+                    </div>
+                    
+                    <form id="messageForm">
+                        <div class="form-group">
+                            <label>Enter Message</label>
+                            <textarea  id="message" class="form-control"></textarea>
+                            <br>
+                            <input type="submit" class="btn btn-primary" value="Send Message">
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            
+            $( () => {
+                
+                let socket = io.connect();
+                let $messageForm = $('#messageForm');
+                let $message = $('#message');
+                let $chat = $('#chat');
+                let $userForm = $('#userForm'); 
+                let $messageArea = $('#messageArea'); 
+                let $userFormArea = $('#userFormArea');
+                let $users = $('#users');
+                let $username = $('#userName');
+
+                $messageForm.submit( (e) => {
+                    
+                    e.preventDefault();
+                    
+                    socket.emit('send message', $message.val(), (data) => {
+                        $chat.append('<div class="well"><span class="erroMsg">' + data + '</span></div>');
+                    });
+                    
+                    $message.val('');
+                });
+
+                socket.on('new message', (data) => {
+                    
+                    $('.typing').remove();
+                    
+                    $chat.append('<div class="well"><b><i>'+ data.user + ' : </i></b>' + data.msg + '</div>');
+                });
+
+                $userForm.submit( (e) => {
+                    
+                    e.preventDefault();
+                    
+                    socket.emit('new user', $username.val(), (data) => {
+                        
+                        if (data) {
+                            
+                            $userFormArea.hide(500);
+                            $messageArea.show(500);
+                        }
+                    });
+                    
+                    $username.val('');
+                });
+
+                socket.on('get users', (data) => {
+                    
+                    let html = '';
+
+                    for (let i = 0; i < data.length; i++) {
+                        html += '<li class="list-group-item">' + data[i] + '</li>';
+                    }
+                    
+                    $users.html(html);
+                });
+
+                socket.on('private message', (data) => {
+                    
+                    $('.typing').remove();
+                    
+                    $chat.append('<div class="well"><b><i><span class="privateMsg">Private messsage from </span>' + data.user + ' : </i></b>' + data.msg + '</div>');
+                });
+
+                document.getElementById('message').addEventListener('click', () => {
+                    socket.emit('typing', $username.val());
+                }); 
+
+                socket.on('typing', (data) => {
+                    $chat.append('<div class="typing"><b><i>' + data.user + '</i></b><i> is typing a message...</i></div><br>');
+                });
+            });
+        
+        </script>
+    </body>
+</html>
